@@ -41,7 +41,6 @@ handleImageLoadingResult (path, Left msg) = do
 handleImageLoadingResult (path, Right img) =
   do
     _ <- putStrLn ("SUCCESS loading file " ++ path ++ " with dims " ++ show (dims img))
-    _ <- displayImage img
     return $ Just img
 
 collectAllImages :: [FilePath] -> IO[Image VS RGB Double]
@@ -68,13 +67,21 @@ centeredCrop (tHeight, tWidth) img = crop (startY, startX) (tHeight,tWidth) img
 processImage :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
 processImage dimensions = centeredCrop dimensions . resizeKeepRatioWithFill dimensions
 
+
+zipWithIndex :: [a] -> [(Int, a)]
+zipWithIndex xs = [0 .. (length xs - 1)] `zip` xs
+
 mergeImages :: Dimensions -> [Image VS RGB Double] -> Image VS RGB Double
-mergeImages layout images = superimpose (0,0) firstProcessed blank
+mergeImages layout images = foldl appendImage blank (zipWithIndex images)
   where
+    appendImage acc (index,img) = superimpose (y, x) processedImage acc
+      where
+        y = (index `div` snd layout) * newHeight
+        x = (index `mod` snd layout) * newWidth
+        processedImage = processImage miniDimensions img
     miniDimensions = (newHeight, newWidth)
     newHeight = floor (fromIntegral (fst targetDimensions) / fromIntegral (fst layout))
     newWidth = floor (fromIntegral (snd targetDimensions) / fromIntegral (snd layout))
-    firstProcessed = processImage miniDimensions (head images)
     blank = makeImageR VS targetDimensions (\(i, j) -> PixelRGB 255 255 255)
 
 displayAllImages :: [Image VS RGB Double] -> IO()
