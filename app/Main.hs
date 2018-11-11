@@ -77,7 +77,13 @@ mergeImages layout images = superimpose (0,0) firstProcessed blank
     firstProcessed = processImage miniDimensions (head images)
     blank = makeImageR VS targetDimensions (\(i, j) -> PixelRGB 255 255 255)
 
+displayAllImages :: [Image VS RGB Double] -> IO()
+displayAllImages = mapM_ displayImage
+
 main :: IO ()
-main = fmap (\images -> mergeImages (head (generateLayouts (length images))) images) (listImages >>= collectAllImages) >>= displayImage
+main = fmap makeAllCollages (listImages >>= collectAllImages) >>= displayAllImages
   where
-    layouts = generateLayouts
+    makeAllCollages :: [Image VS RGB Double] -> [Image VS RGB Double]
+    makeAllCollages images = map (`mergeImages` images) layouts
+      where
+        layouts = generateLayouts (length images)
