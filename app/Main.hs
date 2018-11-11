@@ -39,20 +39,26 @@ showImageOrLog (path, Right img) =
 readAllImageAndDisplayIfPossible :: [FilePath] -> IO()
 readAllImageAndDisplayIfPossible = mapM_ readImageAndDisplayIfPossible
 
-resizeKeepRatioWithFill :: Int -> Int -> Image VS RGB Double -> Image VS RGB Double
-resizeKeepRatioWithFill tHeight tWidth img =
-  if rVertical >= rHorizontal
-  then resize Bilinear Edge (tHeight, ceiling (rVertical * fromIntegral width)) img
-  else resize Bilinear Edge (ceiling (rHorizontal * fromIntegral height), tWidth) img
+resizeKeepRatioWithFill :: (Int, Int) -> Image VS RGB Double -> Image VS RGB Double
+resizeKeepRatioWithFill (tHeight, tWidth) img = resize Bilinear Edge destinationSize img
     where
-      rVertical :: Double
+      destinationSize =
+        if rVertical >= rHorizontal
+        then (tHeight, ceiling (rVertical * fromIntegral width))
+        else (ceiling (rHorizontal * fromIntegral height), tWidth)
       rVertical = fromIntegral tHeight / fromIntegral height
-      rHorizontal :: Double
       rHorizontal = fromIntegral tWidth / fromIntegral width
       (height, width) = dims img
 
+centeredCrop :: (Int, Int) -> Image VS RGB Double -> Image VS RGB Double
+centeredCrop (tHeight, tWidth) img = crop (startY, startX) (tHeight,tWidth) img
+  where
+    startY = floor ((fromIntegral height - fromIntegral tHeight) / 2)
+    startX = floor ((fromIntegral width - fromIntegral tWidth) / 2)
+    (height, width) = dims img
+
 processImage :: Image VS RGB Double -> Image VS RGB Double
-processImage = uncurry resizeKeepRatioWithFill targetDimensions
+processImage = centeredCrop targetDimensions . resizeKeepRatioWithFill targetDimensions
 
 main :: IO ()
 main = listImages >>= readAllImageAndDisplayIfPossible
