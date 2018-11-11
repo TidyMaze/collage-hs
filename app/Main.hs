@@ -65,13 +65,19 @@ centeredCrop (tHeight, tWidth) img = crop (startY, startX) (tHeight,tWidth) img
     startX = floor ((fromIntegral width - fromIntegral tWidth) / 2)
     (height, width) = dims img
 
-processImage :: Image VS RGB Double -> Image VS RGB Double
-processImage = centeredCrop targetDimensions . resizeKeepRatioWithFill targetDimensions
+processImage :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
+processImage dimensions = centeredCrop dimensions . resizeKeepRatioWithFill dimensions
 
-mergeImages :: [Image VS RGB Double] -> Image VS RGB Double
-mergeImages images = blank
+mergeImages :: Dimensions -> [Image VS RGB Double] -> Image VS RGB Double
+mergeImages layout images = superimpose (0,0) firstProcessed blank
   where
+    miniDimensions = (newHeight, newWidth)
+    newHeight = floor (fromIntegral (fst targetDimensions) / fromIntegral (fst layout))
+    newWidth = floor (fromIntegral (snd targetDimensions) / fromIntegral (snd layout))
+    firstProcessed = processImage miniDimensions (head images)
     blank = makeImageR VS targetDimensions (\(i, j) -> PixelRGB 255 255 255)
 
 main :: IO ()
-main = fmap mergeImages (listImages >>= collectAllImages) >>= displayImage
+main = fmap (\images -> mergeImages (head (generateLayouts (length images))) images) (listImages >>= collectAllImages) >>= displayImage
+  where
+    layouts = generateLayouts
