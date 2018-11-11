@@ -10,9 +10,13 @@ import Data.String
 import System.Directory
 
 type LocalizedImage = (FilePath, Image VS RGB Double)
+type Dimensions = (Int, Int)
 
-targetDimensions :: (Int, Int)
+targetDimensions :: Dimensions
 targetDimensions = (600, 800)
+
+generateLayouts :: Int -> [Dimensions]
+generateLayouts nbImages = map (\width -> (ceiling (fromIntegral nbImages / fromIntegral width), width) ) [1 .. nbImages]
 
 imagesPath :: FilePath
 imagesPath = "images"
@@ -34,12 +38,12 @@ showImageOrLog (path, Left msg) =
 showImageOrLog (path, Right img) =
   do
     _ <- putStrLn ("SUCCESS loading file " ++ path ++ " with dims " ++ show (dims img))
-    displayImage $ processImage img
+    (displayImage . processImage) img
 
 readAllImageAndDisplayIfPossible :: [FilePath] -> IO()
 readAllImageAndDisplayIfPossible = mapM_ readImageAndDisplayIfPossible
 
-resizeKeepRatioWithFill :: (Int, Int) -> Image VS RGB Double -> Image VS RGB Double
+resizeKeepRatioWithFill :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
 resizeKeepRatioWithFill (tHeight, tWidth) img = resize Bilinear Edge destinationSize img
     where
       destinationSize =
@@ -50,7 +54,7 @@ resizeKeepRatioWithFill (tHeight, tWidth) img = resize Bilinear Edge destination
       rHorizontal = fromIntegral tWidth / fromIntegral width
       (height, width) = dims img
 
-centeredCrop :: (Int, Int) -> Image VS RGB Double -> Image VS RGB Double
+centeredCrop :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
 centeredCrop (tHeight, tWidth) img = crop (startY, startX) (tHeight,tWidth) img
   where
     startY = floor ((fromIntegral height - fromIntegral tHeight) / 2)
