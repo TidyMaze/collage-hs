@@ -29,8 +29,8 @@ imagesPath = "images"
 listImages :: IO[FilePath]
 listImages = fmap (map ((imagesPath ++ "/") ++)) (listDirectory imagesPath)
 
-readImageAndDisplayIfPossible :: FilePath -> IO (Maybe (Image VS RGB Double))
-readImageAndDisplayIfPossible p = fmap (\e -> (p, e)) maybeLoaded >>= handleImageLoadingResult
+loadImageWithLogs :: FilePath -> IO (Maybe (Image VS RGB Double))
+loadImageWithLogs p = fmap (\e -> (p, e)) maybeLoaded >>= handleImageLoadingResult
   where
     maybeLoaded = readImage p :: IO (Either String (Image VS RGB Double))
 
@@ -44,7 +44,7 @@ handleImageLoadingResult (path, Right img) =
     return $ Just img
 
 collectAllImages :: [FilePath] -> IO[Image VS RGB Double]
-collectAllImages = fmap catMaybes . mapM readImageAndDisplayIfPossible
+collectAllImages = fmap catMaybes . mapM loadImageWithLogs
 
 resizeKeepRatioWithFill :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
 resizeKeepRatioWithFill (tHeight, tWidth) img = resize Bilinear Edge destinationSize img
