@@ -12,7 +12,7 @@ import System.Directory
 type LocalizedImage = (FilePath, Image VS RGB Double)
 
 targetDimensions :: (Int, Int)
-targetDimensions = (1080, 1980)
+targetDimensions = (600, 800)
 
 imagesPath :: FilePath
 imagesPath = "images"
@@ -29,21 +29,30 @@ readImageAndDisplayIfPossible p = fmap (\e -> (p, e)) maybeLoaded >>= showImageO
     maybeLoaded = readImage p :: IO (Either String (Image VS RGB Double))
 
 showImageOrLog :: (FilePath, Either String (Image VS RGB Double)) -> IO ()
-showImageOrLog (path, Left msg) = putStrLn ("FAILED to load file " ++ path ++ ": " ++ msg)
-showImageOrLog (path, Right img) = do
-  _ <- putStrLn ("SUCCESS loading file " ++ path ++ " with dims " ++ show (dims img))
-  displayImage $ processImage img
+showImageOrLog (path, Left msg) =
+  putStrLn ("FAILED to load file " ++ path ++ ": " ++ msg)
+showImageOrLog (path, Right img) =
+  do
+    _ <- putStrLn ("SUCCESS loading file " ++ path ++ " with dims " ++ show (dims img))
+    displayImage $ processImage img
 
 readAllImageAndDisplayIfPossible :: [FilePath] -> IO()
 readAllImageAndDisplayIfPossible = mapM_ readImageAndDisplayIfPossible
 
+resizeKeepRatioWithFill :: Int -> Int -> Image VS RGB Double -> Image VS RGB Double
+resizeKeepRatioWithFill tHeight tWidth img =
+  if rVertical >= rHorizontal
+  then resize Bilinear Edge (tHeight, ceiling (rVertical * fromIntegral width)) img
+  else resize Bilinear Edge (ceiling (rHorizontal * fromIntegral height), tWidth) img
+    where
+      rVertical :: Double
+      rVertical = fromIntegral tHeight / fromIntegral height
+      rHorizontal :: Double
+      rHorizontal = fromIntegral tWidth / fromIntegral width
+      (height, width) = dims img
+
 processImage :: Image VS RGB Double -> Image VS RGB Double
-processImage = resize Bilinear Edge targetDimensions
+processImage = uncurry resizeKeepRatioWithFill targetDimensions
 
 main :: IO ()
 main = listImages >>= readAllImageAndDisplayIfPossible
-  -- c1 <- readImageRGB VU "images/chat2.jpg"
-  -- displayImage c1
-  -- c2 <- readImageRGB VU "images/chat3.jpg"
-  -- displayImage c2
-  -- displayImage ((c1 + c2) / 2)
