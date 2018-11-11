@@ -4,7 +4,7 @@ import Graphics.Image.IO
 import Graphics.Image.ColorSpace
 import Graphics.Image.Types
 import Graphics.Image.Processing
-import Graphics.Image (dims)
+import Graphics.Image (dims, makeImageR)
 import Graphics.Image.Interface (BaseArray)
 import Data.String
 import Data.Maybe
@@ -41,10 +41,8 @@ handleImageLoadingResult (path, Left msg) = do
 handleImageLoadingResult (path, Right img) =
   do
     _ <- putStrLn ("SUCCESS loading file " ++ path ++ " with dims " ++ show (dims img))
-    _ <- displayImage processedImage
-    return $ Just processedImage
-  where
-    processedImage = processImage img
+    _ <- displayImage img
+    return $ Just img
 
 collectAllImages :: [FilePath] -> IO[Image VS RGB Double]
 collectAllImages = fmap catMaybes . mapM readImageAndDisplayIfPossible
@@ -71,7 +69,9 @@ processImage :: Image VS RGB Double -> Image VS RGB Double
 processImage = centeredCrop targetDimensions . resizeKeepRatioWithFill targetDimensions
 
 mergeImages :: [Image VS RGB Double] -> Image VS RGB Double
-mergeImages = head
+mergeImages images = blank
+  where
+    blank = makeImageR VS targetDimensions (\(i, j) -> PixelRGB 255 255 255)
 
-main :: IO (Image VS RGB Double)
-main = fmap mergeImages (listImages >>= collectAllImages)
+main :: IO ()
+main = fmap mergeImages (listImages >>= collectAllImages) >>= displayImage
