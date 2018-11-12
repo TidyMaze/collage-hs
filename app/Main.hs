@@ -9,6 +9,7 @@ import Graphics.Image.Interface (BaseArray)
 import Data.String
 import Data.Maybe
 import System.Directory
+import Data.List
 
 type LocalizedImage = (FilePath, Image VS RGB Double)
 type Dimensions = (Int, Int)
@@ -57,40 +58,51 @@ resizeKeepRatioWithFill (tHeight, tWidth) img = resize Bilinear Edge destination
       rHorizontal = fromIntegral tWidth / fromIntegral width
       (height, width) = dims img
 
-centeredCrop :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
-centeredCrop (tHeight, tWidth) img = crop (startY, startX) (tHeight,tWidth) img
+centeredCrop :: Dimensions -> Image VS RGB Double -> (Image VS RGB Double, Int)
+centeredCrop (tHeight, tWidth) img = (cropped, loss)
   where
+    loss = height * width - tHeight * tWidth
+    cropped = crop (startY, startX) (tHeight,tWidth) img
     startY = floor ((fromIntegral height - fromIntegral tHeight) / 2)
     startX = floor ((fromIntegral width - fromIntegral tWidth) / 2)
     (height, width) = dims img
 
-processImage :: Dimensions -> Image VS RGB Double -> Image VS RGB Double
+processImage :: Dimensions -> Image VS RGB Double -> (Image VS RGB Double, Int)
 processImage dimensions = centeredCrop dimensions . resizeKeepRatioWithFill dimensions
 
 
 zipWithIndex :: [a] -> [(Int, a)]
 zipWithIndex xs = [0 .. (length xs - 1)] `zip` xs
 
-mergeImages :: Dimensions -> [Image VS RGB Double] -> Image VS RGB Double
-mergeImages layout images = foldl appendImage blank (zipWithIndex images)
+mergeImages :: Dimensions -> [Image VS RGB Double] -> (Image VS RGB Double, Int)
+mergeImages layout images = foldl appendImage (blank, 0) (zipWithIndex images)
   where
-    appendImage acc (index,img) = superimpose (y, x) processedImage acc
+    appendImage (acc, tloss) (index,img) = (superimpose (y, x) processedImage acc, tloss + loss)
       where
         y = (index `div` snd layout) * newHeight
         x = (index `mod` snd layout) * newWidth
-        processedImage = processImage miniDimensions img
+        (processedImage, loss) = processImage miniDimensions img
     miniDimensions = (newHeight, newWidth)
     newHeight = floor (fromIntegral (fst targetDimensions) / fromIntegral (fst layout))
     newWidth = floor (fromIntegral (snd targetDimensions) / fromIntegral (snd layout))
     blank = makeImageR VS targetDimensions (\(i, j) -> PixelRGB 255 255 255)
 
-displayAllImages :: [Image VS RGB Double] -> IO()
-displayAllImages = mapM_ displayImage
+displayAllImages :: [(Image VS RGB Double, Int)] -> IO()
+displayAllImages = mapM_ displayAndLogLoss
+  where
+    displayAndLogLoss :: (Image VS RGB Double, Int) -> IO()
+    displayAndLogLoss (img, loss) = do
+      _ <- displayImage img
+      _ <- print ("loss " ++ show loss)
+      return ()
+
+sortByLoss :: [(a, Int)] -> [(a, Int)]
+sortByLoss = sortOn snd
 
 main :: IO ()
-main = fmap makeAllCollages (listImages >>= collectAllImages) >>= displayAllImages
+main = (fmap (sortByLoss . makeAllCollages) (listImages >>= collectAllImages)) >>= displayAllImages
   where
-    makeAllCollages :: [Image VS RGB Double] -> [Image VS RGB Double]
+    makeAllCollages :: [Image VS RGB Double] -> [(Image VS RGB Double, Int)]
     makeAllCollages images = map (`mergeImages` images) layouts
       where
         layouts = generateLayouts (length images)
